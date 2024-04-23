@@ -88,10 +88,6 @@ public class EpidemicSimulation extends SimFactory {
         }
     }
 
-
-
-
-
     @Override
     public void createGoal() {
         // Implement if needed
@@ -100,16 +96,13 @@ public class EpidemicSimulation extends SimFactory {
     @Override
     public void schedule() {
         List<Robot> robots = environment.getRobot();
-
         for (int i = 0; i < sp.step; i++) {
+
             System.out.println("Step: " + i);
             for (Robot robot : robots) {
                 EpidemicAgent epidemicAgent = (EpidemicAgent) robot;
                 // Decide whether to wear a mask
                 epidemicAgent.decideToWearMask();
-                // Decide whether to confine
-                epidemicAgent.decideToConfine();
-                //REMOVE THAT FUNCTION TO DEAL WITH IT BSAED ON THE MEDIA AND ON OTHER'S INFECTION
                 // Simulate health outcome
                 simulateHealthOutcome(epidemicAgent, robots);
             }
@@ -119,20 +112,44 @@ public class EpidemicSimulation extends SimFactory {
             } catch (InterruptedException ie) {
                 System.out.println(ie);
             }
+
+        }
+    }
+
+    public void checkInfectionStage_confinement(List<Robot> robots){
+        for(Robot agent: robots){
+            EpidemicAgent a = ((EpidemicAgent) agent);
+            if(a.incubationDays > 3){continue;}
+            if( a.getHealthState() == EpidemicAgent.HealthState.INFECTED_S1 && a.incubationDays < 3 && a.incubationDays >0 ){
+                a.incubationDays += 1;
+            }
+            if(a.getHealthState() == EpidemicAgent.HealthState.INFECTED_S1 && a.incubationDays == 3){
+                a.healthState = EpidemicAgent.HealthState.INFECTED_S2;
+            }
+
+            //if the agent is confined he'll have confinement days that remains
+            //decrease this count by one each day until it's 0 and the agent is not confined anymore
+            //so he can't have a facteur de confinement to reduce the probability of infection 
+            if(a.confinementDays>0){
+                a.confinementDays -= 1;
+            }else{
+                a.isConfined = false;
+            }
+
         }
     }
 
     public void simulateHealthOutcome(EpidemicAgent agent, List<Robot> robots) {
         Random random = new Random();
 
-        boolean isCloseContact = agent.identifyCloseContacts(0.7);
+        checkInfectionStage_confinement(robots);
 
+        //define the daily circle of 15person
         // HashSet to store unique indices
         HashSet<Integer> chosenIndices = new HashSet<>();
-
-        ArrayList<Robot> CercleContact = new ArrayList();
+        ArrayList<Robot> CircleContact = new ArrayList<>();
         // Choose random elements
-        while (CercleContact.size() < numElements) {
+        while (CircleContact.size() < numElements) {
             // Generate a random index
             int randomIndex = random.nextInt(robots.size());
             // Check if the index is not already chosen
@@ -140,43 +157,69 @@ public class EpidemicSimulation extends SimFactory {
                 // Add the index to the set of chosen indices
                 chosenIndices.add(randomIndex);
                 // Add the element at the random index to the result ArrayList
-                CercleContact.add(robots.get(randomIndex));
+                CircleContact.add(robots.get(randomIndex));
             }
         }
 
+
+        boolean isCloseContact = agent.identifyCloseContacts(0.7);
+
+
         if (agent.healthState == EpidemicAgent.HealthState.NON_INFECTED) {
-            // Check for infection based on close contacts
-
-            for (Robot contact : CercleContact) {
-                //contacte uniquement avec le cercle de contacte
-                EpidemicAgent epidemicContact = (EpidemicAgent) contact;
-
-                // Check if the contact is infected
-                if (epidemicContact.getHealthState() == EpidemicAgent.HealthState.INFECTED) {
-                    // Adjust infection probability based on close contacts
-                    if (isCloseContact) {
-                        if(agent.isWearingMask && Math.random() < proba_infection*facteur_reduc_mask){
-                            agent.setInfected();
-                        }
-                        break; // Once infected, no need to check further contacts
-                    }
+            //check the circle of an agent if infected of stage 2
+            //in that case he may want to isolate himself regardless if he was in contact with the person or not
+            //because in the following code we check the close contact (only one time)
+            for(Robot circleRobot: CircleContact){
+                EpidemicAgent epidemicContact = (EpidemicAgent) circleRobot;
+                //si il y'a quelqun dans son cercle qui est infecterS2
+                //ET SI L'AGENT N'EST PAS DEJA CONFINE
+                //alors il decide de se confiner
+                //cela est important pour le nombre de jours de confinement
+                if (epidemicContact.getHealthState() == EpidemicAgent.HealthState.INFECTED_S2 && !agent.isConfined){
+                    agent.decideToConfine();
                 }
             }
 
 
+            // Check for infection based on close contacts
+            for (Robot contact : CircleContact) {
+                //contacte uniquement avec le cercle de contacte
+                EpidemicAgent epidemicContact = (EpidemicAgent) contact;
 
+                // Check if the contact is infected
+                if (epidemicContact.getHealthState() == EpidemicAgent.HealthState.INFECTED_S1 || epidemicContact.getHealthState() == EpidemicAgent.HealthState.INFECTED_S2) {
+                    // Adjust infection probability based on close contacts
+                    if (isCloseContact) {
+                        //un agent soit porte un mask soit est confine il peut pas etre les deux en meme temps
+                        if (agent.isWearingMask){
+                            if(Math.random() < proba_infection * facteur_reduc_mask) {
+                                agent.setInfected();
+                                break; //once infected stop searching
+                            }
+                        }
+                        else if(agent.isConfined){
+                            if(Math.random()<proba_infection*facteur_reduc_confinement){
+                                agent.setInfected_S2();
+                                break;
+                            }
+                        }
 
+                    }
+                }
 
-        } else if (agent.healthState == EpidemicAgent.HealthState.INFECTED) {
-            // Check if the agent recovers or dies
-            double recoveryChance = random.nextDouble();
-            double mortalityChance = random.nextDouble();
-            if (recoveryChance < proba_recovery) {
+            }
+
+     }
+        // Simulate recovery or death from infection only if the person is in infection stage 2
+        if (agent.getHealthState() == EpidemicAgent.HealthState.INFECTED_S2) {
+            double randomValue = Math.random();
+            if (randomValue < proba_recovery) {
                 agent.setRecovered();
-            } else if (mortalityChance < proba_mort) {
+            } else if (randomValue < proba_recovery + proba_mort) {
                 agent.setDeceased();
             }
         }
     }
+
 
 }

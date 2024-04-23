@@ -7,11 +7,13 @@ import java.awt.*;
 import java.util.Random;
 
 public class EpidemicAgent extends ColorInteractionRobot {
-    public enum HealthState { NON_INFECTED, INFECTED, RECOVERED, DECEASED }
+    public enum HealthState { NON_INFECTED, INFECTED_S1, INFECTED_S2, RECOVERED, DECEASED }
     public boolean isWearingMask;
     public boolean isConfined;
     public boolean isCloseContact;
     public HealthState healthState;
+    public int incubationDays = 0;
+    public int confinementDays = 0;
 
     public EpidemicAgent(String name, int field, int debug, int[] pos, Color co, int rows, int columns){
         super(name, field, debug, pos, co, rows, columns);
@@ -34,9 +36,10 @@ public class EpidemicAgent extends ColorInteractionRobot {
     // Méthode pour décider de se confiner en fonction de différents facteurs
     public void decideToConfine() {
         // Condition basée sur les mesures gouvernementales, les symptômes, etc.
-        double confinementProbability = 0.3; // Probabilité initiale de se confiner
+        double confinementProbability = 0.6; // Probabilité initiale de se confiner
         if (Math.random() < confinementProbability) {
             this.isConfined = true;
+            this.confinementDays = 14;
         } else {
             this.isConfined = false;
         }
@@ -65,7 +68,8 @@ public class EpidemicAgent extends ColorInteractionRobot {
 
 
     public void setInfected() {
-        this.healthState = HealthState.INFECTED;
+        this.healthState = HealthState.INFECTED_S1;
+        incubationDays = 1;
         setColor(new int[]{255, 0, 0}); // Red
     }
 
@@ -77,6 +81,11 @@ public class EpidemicAgent extends ColorInteractionRobot {
     public void setDeceased() {
         this.healthState = HealthState.DECEASED;
         setColor(new int[]{0, 0, 0});
+    }
+
+
+    public void setInfected_S2(){
+        this.healthState = HealthState.INFECTED_S2;
     }
 
     public HealthState getHealthState(){
