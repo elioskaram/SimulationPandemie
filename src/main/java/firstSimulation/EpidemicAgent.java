@@ -15,6 +15,8 @@ public class EpidemicAgent extends ColorInteractionRobot {
     public int incubationDays = 0;
     public int confinementDays = 0;
 
+    public boolean contactWithExterior = false;
+
     public EpidemicAgent(String name, int field, int debug, int[] pos, Color co, int rows, int columns){
         super(name, field, debug, pos, co, rows, columns);
         this.healthState = HealthState.NON_INFECTED;

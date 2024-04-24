@@ -1,23 +1,15 @@
 package firstSimulation;
 
 import fr.emse.fayol.maqit.simulator.SimFactory;
-import fr.emse.fayol.maqit.simulator.components.ColorObstacle;
-import fr.emse.fayol.maqit.simulator.components.InteractionRobot;
-import fr.emse.fayol.maqit.simulator.components.Message;
 import fr.emse.fayol.maqit.simulator.components.Robot;
 import fr.emse.fayol.maqit.simulator.configuration.SimProperties;
 import fr.emse.fayol.maqit.simulator.configuration.IniFile;
-import fr.emse.fayol.maqit.simulator.environment.Cell;
 import fr.emse.fayol.maqit.simulator.environment.ColorGridEnvironment;
-import fr.emse.fayol.maqit.simulator.environment.GridEnvironment;
-import fr.emse.fayol.maqit.simulator.components.ColorInteractionRobot;
 
 
 import java.util.ArrayList;
 import java.util.*;
-import java.util.Collections;
 import java.util.List;
-import java.awt.*;
 import java.util.Random;
 
 public class EpidemicSimulation extends SimFactory {
@@ -29,7 +21,11 @@ public class EpidemicSimulation extends SimFactory {
     private static final double facteur_reduc_mask = 0.8;
     private static final double facteur_reduc_confinement = 0.1;
     private static final double proba_recovery = 0.2;
-    private static final double proba_mort = 0.01;
+    private static final double proba_mort = 0.05;
+    private static final double proba_sortir_exterieur = 0.01;
+    //1% de la population sort de la ville
+    private static final double proba_infection_exterieur = 0.1;
+
 
     public EpidemicSimulation(SimProperties sp) {
         super(sp);
@@ -99,6 +95,9 @@ public class EpidemicSimulation extends SimFactory {
         List<Robot> robots = environment.getRobot();
         for (int i = 0; i < sp.step; i++) {
 
+            //avant chaque etape on doit mettre a jour plusieurs etats
+            updateAgentStates(robots,random);
+
             System.out.println("Step: " + i);
             for (Robot robot : robots) {
                 EpidemicAgent epidemicAgent = (EpidemicAgent) robot;
@@ -117,7 +116,7 @@ public class EpidemicSimulation extends SimFactory {
         }
     }
 
-    public void checkInfectionStage_confinement(List<Robot> robots){
+    public void updateAgentStates(List<Robot> robots, Random random){
         for(Robot agent: robots){
             EpidemicAgent a = ((EpidemicAgent) agent);
             if(a.incubationDays > 3){continue;}
@@ -137,13 +136,17 @@ public class EpidemicSimulation extends SimFactory {
                 a.isConfined = false;
             }
 
+            double randomNumber = random.nextDouble();
+            if (randomNumber < proba_sortir_exterieur) {
+                ((EpidemicAgent) agent).contactWithExterior = true;
+            }
         }
     }
 
     public void simulateHealthOutcome(EpidemicAgent agent, List<Robot> robots,Random random) {
 
 
-        checkInfectionStage_confinement(robots);
+        //checkInfectionStage_confinement(robots);
 
         //define the daily circle of 15person
         // HashSet to store unique indices
@@ -191,38 +194,51 @@ public class EpidemicSimulation extends SimFactory {
                 if (epidemicContact.getHealthState() == EpidemicAgent.HealthState.INFECTED_S1 || epidemicContact.getHealthState() == EpidemicAgent.HealthState.INFECTED_S2) {
                     // Adjust infection probability based on close contacts
                     if (isCloseContact) {
+
+                        /*Pour l'implémentation de la ligne de base (baseline implementation),
+                        nous n'incluons pas le port de masque et le confinement.
+                        De plus, cela sera utile dans l'étape suivante pour
+                        comparer les effets avec ou sans ces fonctionnalités.
+                        pour cette raison on les met en commantaire.
+                        */
+
                         //un agent soit porte un mask soit est confine il peut pas etre les deux en meme temps
-                        if (agent.isWearingMask){
-                            if(Math.random() < proba_infection * facteur_reduc_mask) {
-                                agent.setInfected();
-                                break; //once infected stop searching
-                            }
-                        }
-                        else if(agent.isConfined){
-                            if(Math.random()<proba_infection*facteur_reduc_confinement){
-                                agent.setInfected_S2();
-                                break;
-                            }
-                        }
-                        else{
+//                        if (agent.isWearingMask){
+//                            if(Math.random() < proba_infection * facteur_reduc_mask) {
+//                                agent.setInfected();
+//                                break; //once infected stop searching
+//                            }
+//                        }
+//                        else if(agent.isConfined){
+//                            if(Math.random()<proba_infection*facteur_reduc_confinement){
+//                                agent.setInfected_S2();
+//                                break;
+//                            }
+//                        }
+//                        else{
                             if(Math.random() < proba_infection) {
                                 agent.setInfected();
                                 break; //once infected stop searching
                             }
-                        }
+//                        }
 
                     }
                 }
 
             }
+            //si un agent est sortie de la ville et a eu un contact il y'a une proba d'infection
+            if(agent.contactWithExterior && Math.random()<proba_infection_exterieur){
+                agent.setInfected();
+            }
 
-     }
+        }
         // Simulate recovery or death from infection only if the person is in infection stage 2
         if (agent.getHealthState() == EpidemicAgent.HealthState.INFECTED_S2) {
             double randomValue = Math.random();
             if (randomValue < proba_recovery) {
                 agent.setRecovered();
             } else if (randomValue < proba_recovery + proba_mort) {
+                //If the random value falls between the probability of recovery and the sum of the probabilities of recovery and mortality, the agent is marked as deceased.
                 agent.setDeceased();
             }
         }
