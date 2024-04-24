@@ -141,6 +141,7 @@ public class EpidemicSimulation extends SimFactory {
 
     public void simulateHealthOutcome(EpidemicAgent agent, List<Robot> robots) {
         Random random = new Random();
+        //random.setSeed(sp.seed);
 
         checkInfectionStage_confinement(robots);
 
@@ -201,6 +202,12 @@ public class EpidemicSimulation extends SimFactory {
                             if(Math.random()<proba_infection*facteur_reduc_confinement){
                                 agent.setInfected_S2();
                                 break;
+                            }
+                        }
+                        else{
+                            if(Math.random() < proba_infection) {
+                                agent.setInfected();
+                                break; //once infected stop searching
                             }
                         }
 
