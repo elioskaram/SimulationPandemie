@@ -95,6 +95,7 @@ public class EpidemicSimulation extends SimFactory {
 
     @Override
     public void schedule() {
+        Random random = new Random(sp.seed);
         List<Robot> robots = environment.getRobot();
         for (int i = 0; i < sp.step; i++) {
 
@@ -104,7 +105,7 @@ public class EpidemicSimulation extends SimFactory {
                 // Decide whether to wear a mask
                 epidemicAgent.decideToWearMask();
                 // Simulate health outcome
-                simulateHealthOutcome(epidemicAgent, robots);
+                simulateHealthOutcome(epidemicAgent, robots, random);
             }
             refreshGW();
             try {
@@ -139,9 +140,8 @@ public class EpidemicSimulation extends SimFactory {
         }
     }
 
-    public void simulateHealthOutcome(EpidemicAgent agent, List<Robot> robots) {
-        Random random = new Random();
-        //random.setSeed(sp.seed);
+    public void simulateHealthOutcome(EpidemicAgent agent, List<Robot> robots,Random random) {
+
 
         checkInfectionStage_confinement(robots);
 
