@@ -9,6 +9,8 @@ import java.util.Random;
 public class EpidemicAgent extends ColorInteractionRobot {
     public enum HealthState { NON_INFECTED, INFECTED_S1, INFECTED_S2, RECOVERED, DECEASED }
     public boolean isWearingMask;
+    public boolean isWearingMaskGov;
+    public int maskDays = 0;
     public boolean isConfined;
     public boolean isCloseContact;
     public HealthState healthState;
@@ -33,6 +35,26 @@ public class EpidemicAgent extends ColorInteractionRobot {
             this.isWearingMask = false;
         }
 
+    }
+
+    public void acceptGovConfinment(Random random){
+        double acceptProbability = 0.9; // Probabilité initiale d'accepter confiner
+        if (random.nextDouble() < acceptProbability) {
+            this.isConfined = true;
+            this.confinementDays = 14;
+        } else {
+            this.isConfined = false;
+        }
+    }
+
+    public void acceptGovMask(Random random){
+        double accpetProbability = 0.8; // Probabilité initiale d'accepter les mask
+        if (random.nextDouble() < accpetProbability) {
+            this.isWearingMaskGov = true;
+            this.maskDays = 14;
+        } else {
+            this.isWearingMaskGov = false;
+        }
     }
 
     // Méthode pour décider de se confiner en fonction de différents facteurs
