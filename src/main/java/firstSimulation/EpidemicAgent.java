@@ -16,6 +16,13 @@ public class EpidemicAgent extends ColorInteractionRobot {
     public HealthState healthState;
     public int incubationDays = 0;
     public int confinementDays = 0;
+    public boolean isAffectedByMedia = false;
+
+    private static double maskProbability = 0.5;
+    private static double maskMediaFactor = 1.1;
+    private static double confinementProbability = 0.6;
+    private static double confinmentMediaFactor = 1.1;
+    private static double acceptProbability = 0.6;
 
     public boolean contactWithExterior = false;
 
@@ -28,8 +35,15 @@ public class EpidemicAgent extends ColorInteractionRobot {
     // Méthode pour décider de porter un masque en fonction de différents facteurs
     public void decideToWearMask() {
         // Condition basée sur les mesures gouvernementales, la perception du risque, etc.
-        double maskProbability = 0.5; // Probabilité initiale de porter un masque
-        if (Math.random() < maskProbability) {
+        double Maskproba;
+        if(!isAffectedByMedia){
+            Maskproba = maskProbability;
+        }
+        else{
+            Maskproba = maskProbability*maskMediaFactor;
+        }
+
+        if (!this.isConfined && Math.random() < Maskproba) {
             this.isWearingMask = true;
         } else {
             this.isWearingMask = false;
@@ -37,19 +51,19 @@ public class EpidemicAgent extends ColorInteractionRobot {
 
     }
 
-    public void acceptGovConfinment(Random random){
-        double acceptProbability = 0.9; // Probabilité initiale d'accepter confiner
+    public int acceptGovConfinment(Random random){
         if (random.nextDouble() < acceptProbability) {
             this.isConfined = true;
             this.confinementDays = 14;
+            return 1;
         } else {
             this.isConfined = false;
+            return 0;
         }
     }
 
     public void acceptGovMask(Random random){
-        double accpetProbability = 0.8; // Probabilité initiale d'accepter les mask
-        if (random.nextDouble() < accpetProbability) {
+        if (random.nextDouble() < acceptProbability) {
             this.isWearingMaskGov = true;
             this.maskDays = 14;
         } else {
@@ -58,14 +72,22 @@ public class EpidemicAgent extends ColorInteractionRobot {
     }
 
     // Méthode pour décider de se confiner en fonction de différents facteurs
-    public void decideToConfine() {
+    public int decideToConfine() {
         // Condition basée sur les mesures gouvernementales, les symptômes, etc.
-        double confinementProbability = 0.6; // Probabilité initiale de se confiner
-        if (Math.random() < confinementProbability) {
+        double Confproba;
+        if(!isAffectedByMedia){
+            Confproba = confinementProbability;
+        }
+        else{
+            Confproba = confinementProbability*confinmentMediaFactor;
+        }
+        if (Math.random() < Confproba) {
             this.isConfined = true;
             this.confinementDays = 14;
+            return 1;
         } else {
             this.isConfined = false;
+            return 0;
         }
     }
 

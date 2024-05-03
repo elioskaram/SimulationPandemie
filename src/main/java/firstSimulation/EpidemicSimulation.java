@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.*;
 import java.util.List;
 import java.util.Random;
+import java.io.FileWriter;
+import java.io.IOException;
 
 public class EpidemicSimulation extends SimFactory {
 
@@ -26,11 +28,20 @@ public class EpidemicSimulation extends SimFactory {
     //1% de la population sort de la ville
     private static final double proba_infection_exterieur = 0.1;
 
-    private static final int seuilMorts = 500;
+    private static final int seuilMorts = 1000;
     private static final int seuilInfection = 1200;
 
     public static int nbInfection = 2;
     public static int nbMorts = 0;
+    public static int nbSain;
+    public static int nbConfiner=0;
+    public static int nbMaks=0;
+    public static double contactProbability=0.95;
+
+    public static double mediaImpact = 0.4;
+
+    String csvFilePath = "EpidemicMetrics.csv";
+
 
 
     public EpidemicSimulation(SimProperties sp) {
@@ -97,43 +108,67 @@ public class EpidemicSimulation extends SimFactory {
 
     @Override
     public void schedule() {
-        Random random = new Random(sp.seed);
-        List<Robot> robots = environment.getRobot();
-        for (int i = 0; i < sp.step; i++) {
+        try(FileWriter writer = new FileWriter(csvFilePath)){
+            Random random = new Random(sp.seed);
+            List<Robot> robots = environment.getRobot();
 
-            //avant chaque etape on doit mettre a jour plusieurs etats
-            updateAgentStates(robots,random);
+            writer.append("nbSain,nbInfection,nbMorts,nbConfiner,nbMaks\n");
+            writer.append(nbSain+","+nbInfection+","+nbMorts+","+nbConfiner+","+nbMaks);
+            writer.append("\n");
 
-            System.out.println("Step: " + i);
-            for (Robot robot : robots) {
-                EpidemicAgent epidemicAgent = (EpidemicAgent) robot;
-                // Decide whether to wear a mask
-                epidemicAgent.decideToWearMask();
-                // Simulate health outcome
-                simulateHealthOutcome(epidemicAgent, robots, random);
+            for (int i = 0; i < sp.step; i++) {
+                nbConfiner=0;
+                nbMaks=0;
+                //avant chaque etape on doit mettre a jour plusieurs etats
+                updateAgentStates(robots,random);
+
+                System.out.println("Step: " + i);
+                for (Robot robot : robots) {
+                    EpidemicAgent epidemicAgent = (EpidemicAgent) robot;
+                    // Decide whether to wear a mask
+                    epidemicAgent.decideToWearMask();
+                    // Simulate health outcome
+                    simulateHealthOutcome(epidemicAgent, robots, random);
+                }
+
+                GovDecisionConfinement(robots,random);
+                GovDecisionMask(robots,random);
+
+
+                writer.append(nbSain+","+nbInfection+","+nbMorts+","+nbConfiner+","+nbMaks);
+                writer.append("\n");
+
+                System.out.println(nbMorts);
+                System.out.println(nbInfection);
+                nbSain = sp.nbrobot - nbMorts - nbInfection;
+                System.out.println(nbSain);
+                System.out.println(nbConfiner);
+                System.out.println(nbMaks);
+
+                refreshGW();
+                try {
+                    Thread.sleep(sp.waittime);
+                } catch (InterruptedException ie) {
+                    System.out.println(ie);
+                }
+
             }
-
-            GovDecisionConfinement(robots,random);
-            GovDecisionMask(robots,random);
-
-            System.out.println(nbMorts);
-            System.out.println(nbInfection);
-
-            refreshGW();
-            try {
-                Thread.sleep(sp.waittime);
-            } catch (InterruptedException ie) {
-                System.out.println(ie);
-            }
-
         }
+        catch (IOException e) {
+            System.err.println("Error exporting robots to CSV: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+
     }
 
     private void GovDecisionMask(List<Robot> robots, Random random) {
         double randomNumber = random.nextDouble();
         if(nbMorts>seuilInfection){
             for(Robot robot: robots){
-                ((EpidemicAgent)robot).acceptGovMask(random);
+                if(!((EpidemicAgent)robot).isWearingMask){
+                    ((EpidemicAgent)robot).acceptGovMask(random);
+                }
             }
         }
     }
@@ -142,7 +177,9 @@ public class EpidemicSimulation extends SimFactory {
         double randomNumber = random.nextDouble();
         if(nbMorts>seuilMorts){
             for(Robot robot: robots){
-                ((EpidemicAgent)robot).acceptGovConfinment(random);
+                if(!((EpidemicAgent)robot).isConfined){
+                    ((EpidemicAgent)robot).acceptGovConfinment(random);
+                }
             }
         }
     }
@@ -179,6 +216,18 @@ public class EpidemicSimulation extends SimFactory {
             if (randomNumber < proba_sortir_exterieur) {
                 ((EpidemicAgent) agent).contactWithExterior = true;
             }
+
+            double randomMedianumber = random.nextDouble();
+            if(randomMedianumber<mediaImpact){
+                ((EpidemicAgent) agent).isAffectedByMedia = true;
+            }
+
+            if(a.isConfined){
+                nbConfiner+=1;
+            }
+            if(a.isWearingMask){
+                nbMaks+=1;
+            }
         }
     }
 
@@ -206,7 +255,7 @@ public class EpidemicSimulation extends SimFactory {
         }
 
 
-        boolean isCloseContact = agent.identifyCloseContacts(0.7);
+        boolean isCloseContact = agent.identifyCloseContacts(contactProbability);
 
 
         if (agent.healthState == EpidemicAgent.HealthState.NON_INFECTED) {
