@@ -16,20 +16,20 @@ import java.io.IOException;
 
 public class EpidemicSimulation extends SimFactory {
 
-    private static final double proba_infection = 0.1;
+    private static final double proba_infection = 0.15;
     private static final double CONTACT_INFECTION_MULTIPLIER = 1.5;
     private static final int numElements = 15;
 
     private static final double facteur_reduc_mask = 0.8;
     private static final double facteur_reduc_confinement = 0.1;
-    private static final double proba_recovery = 0.2;
+    private static final double proba_recovery = 0.7;
     private static final double proba_mort = 0.05;
     private static final double proba_sortir_exterieur = 0.01;
     //1% de la population sort de la ville
     private static final double proba_infection_exterieur = 0.1;
 
-    private static final int seuilMorts = 1000;
-    private static final int seuilInfection = 1200;
+    private static final int seuilMorts = 1300;
+    private static final int seuilInfection = 1600;
 
     public static int nbInfection = 2;
     public static int nbMorts = 0;
@@ -40,7 +40,7 @@ public class EpidemicSimulation extends SimFactory {
 
     public static double mediaImpact = 0.4;
 
-    String csvFilePath = "EpidemicMetrics.csv";
+    String csvFilePath = "EpidemicMetrics_scenario6.csv";
 
 
 
@@ -111,6 +111,7 @@ public class EpidemicSimulation extends SimFactory {
         try(FileWriter writer = new FileWriter(csvFilePath)){
             Random random = new Random(sp.seed);
             List<Robot> robots = environment.getRobot();
+            nbSain = sp.nbrobot - nbMorts - nbInfection;
 
             writer.append("nbSain,nbInfection,nbMorts,nbConfiner,nbMaks\n");
             writer.append(nbSain+","+nbInfection+","+nbMorts+","+nbConfiner+","+nbMaks);
@@ -130,27 +131,23 @@ public class EpidemicSimulation extends SimFactory {
                     // Simulate health outcome
                     simulateHealthOutcome(epidemicAgent, robots, random);
                 }
+                //only used for the last scenario where the gov decisions are only applied after the day 30;
+                if(i>30){
+                    GovDecisionConfinement(robots,random);
+                    GovDecisionMask(robots,random);
+                }
 
-                GovDecisionConfinement(robots,random);
-                GovDecisionMask(robots,random);
-
-
+                nbSain = sp.nbrobot - nbMorts - nbInfection;
                 writer.append(nbSain+","+nbInfection+","+nbMorts+","+nbConfiner+","+nbMaks);
                 writer.append("\n");
 
-                System.out.println(nbMorts);
-                System.out.println(nbInfection);
-                nbSain = sp.nbrobot - nbMorts - nbInfection;
-                System.out.println(nbSain);
-                System.out.println(nbConfiner);
-                System.out.println(nbMaks);
 
                 refreshGW();
-                try {
-                    Thread.sleep(sp.waittime);
-                } catch (InterruptedException ie) {
-                    System.out.println(ie);
-                }
+//                try {
+//                    Thread.sleep(sp.waittime);
+//                } catch (InterruptedException ie) {
+//                    System.out.println(ie);
+//                }
 
             }
         }

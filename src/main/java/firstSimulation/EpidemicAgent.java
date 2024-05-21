@@ -20,9 +20,9 @@ public class EpidemicAgent extends ColorInteractionRobot {
 
     private static double maskProbability = 0.5;
     private static double maskMediaFactor = 1.1;
-    private static double confinementProbability = 0.6;
+    private static double confinementProbability = 0.5;
     private static double confinmentMediaFactor = 1.1;
-    private static double acceptProbability = 0.6;
+    private static double acceptProbability = 0.9;
 
     public boolean contactWithExterior = false;
 
